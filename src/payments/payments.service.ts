@@ -19,6 +19,7 @@ export class PaymentsService {
     return this.stripe.paymentIntents.create({
       amount: amount * 100,
       currency,
+      payment_method_types : ['card'],
     });
   }
 }

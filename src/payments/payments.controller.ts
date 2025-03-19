@@ -19,23 +19,21 @@ export class PaymentsController {
     );
 
     if (!stripeKey) {
-      throw new Error('Missing STRIPE_SECRET_KEY in environment variables');
+      throw new Error('❌ STRIPE_SECRET_KEY is missing in .env');
     }
     if (!webhookSecret) {
-      throw new Error('Missing STRIPE_WEBHOOK_SECRET in environment variables');
+      throw new Error('❌ STRIPE_WEBHOOK_SECRET is missing in .env');
     }
 
     this.stripe = new Stripe(stripeKey, { apiVersion: '2025-02-24.acacia' });
     this.webhookSecret = webhookSecret;
   }
 
-  // Create a payment intent for borrowers
   @Post('create-intent')
   async createPaymentIntent(@Body('amount') amount: number) {
     return this.paymentsService.createPaymentIntent(amount, 'usd');
   }
 
-  // Stripe webhook handler
   @Post('webhook')
   async handleStripeWebhook(
     @Req() req: Request,
@@ -46,12 +44,12 @@ export class PaymentsController {
 
     try {
       event = this.stripe.webhooks.constructEvent(
-        req.body,
+        req.rawBody, 
         sig,
         this.webhookSecret,
       );
     } catch (err) {
-      console.error('⚠️ Webhook signature verification failed:', err.message);
+      console.error('❌ Webhook signature verification failed:', err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
