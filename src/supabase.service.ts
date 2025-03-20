@@ -3,7 +3,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class BorrowersService {
+export class SupabaseService {
   private supabase: SupabaseClient;
 
   constructor(private configService: ConfigService) {
@@ -13,17 +13,8 @@ export class BorrowersService {
     );
   }
 
-  async createBorrower(name: string, email: string, phone: string) {
-    const { data, error } = await this.supabase
-      .from('borrowers')
-      .insert([{ name, email, phone }])
-      .select();
-    if (error) throw error;
-    return data;
-  }
-
-  async getBorrowers() {
-    const { data, error } = await this.supabase.from('borrowers').select('*');
+  async getUsers() {
+    const { data, error } = await this.supabase.from('users').select('*');
     if (error) throw error;
     return data;
   }
