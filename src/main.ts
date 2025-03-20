@@ -3,7 +3,10 @@ import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import * as bodyParser from 'body-parser';
 import { createClient } from '@supabase/supabase-js';
+import * as dotenv from 'dotenv'
 
+
+dotenv.config()
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -20,6 +23,10 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 3000;
 
+
+  console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
+  console.log('SUPABASE_DB_URL:', process.env.SUPABASE_DB_URL);
+  console.log('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY);
   // Initialize Supabase
   const supabase = createClient(
     configService.get<string>('SUPABASE_URL') || '',
@@ -30,6 +37,7 @@ async function bootstrap() {
 
   await app.listen(port);
   console.log(`🚀 Server running on http://localhost:${port}`);
+  console.log('Connecting to:', process.env.SUPABASE_DB_URL);
 }
 
 bootstrap();
