@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BorrowersModule } from './borrowers/borrowers.module';
+import {Borrower } from './borrowers/borrowers.entity';
+import {PaymentsModule} from './payments/payments.module'
 
 @Module({
   imports: [
@@ -21,6 +23,9 @@ import { BorrowersModule } from './borrowers/borrowers.module';
       }),
       inject: [ConfigService],
     }),
+    TypeOrmModule.forFeature([Borrower]),
+    BorrowersModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
