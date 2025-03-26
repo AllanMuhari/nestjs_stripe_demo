@@ -8,16 +8,19 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "node --max-old-space-size=512 dist/main",
-    "start:dev": "node --max-old-space-size=512 --inspect=0.0.0.0 nest start --watch",
-    "start:debug": "node --max-old-space-size=1024 --inspect-brk=0.0.0.0 nest start --debug --watch",
-    "start:prod": "node --max-old-space-size=1024 dist/main",
+    "start": "node dist/main",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "node --max-old-space-size=1024 --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "migration:generate": "yarn typeorm migration:generate ./src/migrations/BorrowersInit -d ./src/data-source.ts",
+    "migration:run": "yarn typeorm migration:run -d ./src/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

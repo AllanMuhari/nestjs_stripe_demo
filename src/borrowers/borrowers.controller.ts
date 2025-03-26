@@ -1,21 +1,44 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { BorrowersService } from './borrowers.service';
+import { Borrower } from './borrowers.entity';
 
 @Controller('borrowers')
 export class BorrowersController {
   constructor(private readonly borrowersService: BorrowersService) {}
 
-  @Post()
-  async createBorrower(@Body() body) {
-    return this.borrowersService.createBorrower(
-      body.name,
-      body.email,
-      body.phone,
-    );
+  @Get()
+  async getAll(): Promise<Borrower[]> {
+    return this.borrowersService.findAll();
   }
 
-  @Get()
-  async getAllBorrowers() {
-    return this.borrowersService.getBorrowers();
+  @Get(':id')
+  async getOne(@Param('id') id: string): Promise<Borrower | null> {
+    return this.borrowersService.findOne(id);
+  }
+
+  @Post()
+  async create(@Body() data: Partial<Borrower>): Promise<Borrower> {
+    return this.borrowersService.create(data);
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() data: Partial<Borrower>,
+  ): Promise<Borrower> {
+    return this.borrowersService.update(id, data);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string): Promise<void> {
+    return this.borrowersService.delete(id);
   }
 }
