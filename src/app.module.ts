@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { BorrowersModule } from './borrowers/borrowers.module';
 import {Borrower } from './borrowers/borrowers.entity';
 import {PaymentsModule} from './payments/payments.module'
+import {Payment} from './payments/entities/payments.entity'
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import {PaymentsModule} from './payments/payments.module'
       }),
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([Borrower]),
+    TypeOrmModule.forFeature([Borrower , Payment]), 
     BorrowersModule,
     PaymentsModule,
   ],
