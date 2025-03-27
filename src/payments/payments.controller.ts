@@ -14,7 +14,22 @@ import { PaymentsService } from './payments.service';
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
+  // payments.controller.ts
+  @Post('onboard')
+  async onboardBorrowerToStripe(@Body() body: { borrowerId: string }) {
+    return this.paymentsService.createConnectedAccount(body.borrowerId);
+  }
 
+  @Post('disburse')
+  async disburseFunds(
+    @Body() body: { borrowerId: string; amount: number; currency?: string },
+  ) {
+    return this.paymentsService.sendPaymentToBorrower(
+      body.borrowerId,
+      body.amount,
+      body.currency,
+    );
+  }
   @Post('intent')
   async createPaymentIntent(
     @Body() body: { borrowerId: string; amount: number; currency: string },

@@ -23,15 +23,17 @@ export class Payment {
   @Column({ type: 'varchar', length: 3, default: 'USD' })
   currency: string;
 
-  @Column({
-    type: 'enum',
-    enum: ['pending', 'succeeded', 'failed'],
-    default: 'pending',
-  })
-  status: 'pending' | 'succeeded' | 'failed'; // Explicit enum type
-
   @Column({ nullable: true })
   stripePaymentId: string; // Store Stripe payment ID for reference
+
+  @Column({
+    type: 'enum',
+    enum: ['pending', 'succeeded', 'failed', 'disbursed'],
+    default: 'pending',
+  })
+  status: 'pending' | 'succeeded' | 'failed' | 'disbursed';
+  @Column({ default: false })
+  isDisbursement: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -22,7 +22,77 @@ export class PaymentsService {
       { apiVersion: '2025-02-24.acacia' },
     );
   }
+  // payments.service.ts
+  async createConnectedAccount(borrowerId: string): Promise<string> {
+    const borrower = await this.borrowerRepository.findOne({
+      where: { id: borrowerId },
+    });
+    if (!borrower) {
+      throw new HttpException('Borrower not found', HttpStatus.NOT_FOUND);
+    }
 
+    // Create Stripe Connect account
+    const account = await this.stripe.accounts.create({
+      type: 'express',
+      capabilities: {
+        transfers: { requested: true },
+      },
+    });
+
+    // Save Stripe account ID to borrower
+    borrower.stripeAccountId = account.id;
+    await this.borrowerRepository.save(borrower);
+
+    // Create account link for onboarding
+    const accountLink = await this.stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: `${this.configService.get('FRONTEND_URL')}/borrower/onboarding/retry`,
+      return_url: `${this.configService.get('FRONTEND_URL')}/borrower/onboarding/success`,
+      type: 'account_onboarding',
+    });
+
+    return accountLink.url;
+  }
+
+  async sendPaymentToBorrower(
+    borrowerId: string,
+    amount: number,
+    currency: string = 'USD',
+  ): Promise<any> {
+    const borrower = await this.borrowerRepository.findOne({
+      where: { id: borrowerId },
+      relations: ['payments'],
+    });
+    if (!borrower) {
+      throw new HttpException('Borrower not found', HttpStatus.NOT_FOUND);
+    }
+    if (!borrower.stripeAccountId) {
+      throw new HttpException(
+        'Borrower not onboarded to Stripe',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Create transfer to borrower's Stripe account
+    const transfer = await this.stripe.transfers.create({
+      amount: Math.round(amount * 100), // in cents
+      currency,
+      destination: borrower.stripeAccountId,
+    });
+
+    // Record the disbursement in your database
+    const payment = this.paymentRepository.create({
+      borrower,
+      amount,
+      currency,
+      status: 'disbursed',
+      stripePaymentId: transfer.id,
+      isDisbursement: true, // You might want to add this field to Payment entity
+    });
+    await this.paymentRepository.save(payment);
+
+    return transfer;
+  }
   /** Create a Payment Intent for a Borrower */
   async createPaymentIntent(
     borrowerId: string, // Change type from number to string

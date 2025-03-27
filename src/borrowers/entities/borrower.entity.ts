@@ -15,6 +15,11 @@ export class Borrower {
   @Column({ type: 'boolean', default: false })
   isRepaid: boolean;
 
+  @Column({ nullable: true })
+  stripeCustomerId: string;
+  
+  @Column({ nullable: true })
+  stripeAccountId: string;
   @OneToMany(() => Payment, (payment) => payment.borrower)
   payments: Payment[]; // Establishes a one-to-many relationship with payments
 }
