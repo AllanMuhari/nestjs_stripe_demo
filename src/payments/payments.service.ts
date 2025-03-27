@@ -22,7 +22,6 @@ export class PaymentsService {
       { apiVersion: '2025-02-24.acacia' },
     );
   }
-  // payments.service.ts
   async createConnectedAccount(borrowerId: string): Promise<string> {
     const borrower = await this.borrowerRepository.findOne({
       where: { id: borrowerId },
@@ -87,7 +86,7 @@ export class PaymentsService {
       currency,
       status: 'disbursed',
       stripePaymentId: transfer.id,
-      isDisbursement: true, // You might want to add this field to Payment entity
+      isDisbursement: true, 
     });
     await this.paymentRepository.save(payment);
 

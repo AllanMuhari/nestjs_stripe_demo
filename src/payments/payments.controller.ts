@@ -14,7 +14,7 @@ import { PaymentsService } from './payments.service';
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
-  // payments.controller.ts
+
   @Post('onboard')
   async onboardBorrowerToStripe(@Body() body: { borrowerId: string }) {
     return this.paymentsService.createConnectedAccount(body.borrowerId);
