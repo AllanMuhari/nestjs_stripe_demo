@@ -19,38 +19,61 @@ export class PaymentsService {
   ) {
     this.stripe = new Stripe(
       this.configService.get<string>('STRIPE_SECRET_KEY') || '',
-      { apiVersion: '2025-02-24.acacia' },
+      { 
+        apiVersion: '2025-02-24.acacia',
+        typescript: true,
+      },
     );
   }
+
   async createConnectedAccount(borrowerId: string): Promise<string> {
     const borrower = await this.borrowerRepository.findOne({
       where: { id: borrowerId },
     });
+    
     if (!borrower) {
       throw new HttpException('Borrower not found', HttpStatus.NOT_FOUND);
     }
 
-    // Create Stripe Connect account
-    const account = await this.stripe.accounts.create({
-      type: 'express',
-      capabilities: {
-        transfers: { requested: true },
-      },
-    });
+    try {
+      // Create Stripe Connect Express account
+      const account = await this.stripe.accounts.create({
+        type: 'express',
+        country: 'US', // Specify country code
+        email: borrower.email,
+        capabilities: {
+          transfers: { requested: true },
+          card_payments: { requested: true },
+        },
+        business_type: 'individual',
+        individual: {
+          first_name: borrower.name?.split(' ')[0],
+          last_name: borrower.name?.split(' ')[1] || '',
+          email: borrower.email,
+        },
+      });
 
-    // Save Stripe account ID to borrower
-    borrower.stripeAccountId = account.id;
-    await this.borrowerRepository.save(borrower);
+      // Save Stripe account ID to borrower
+      borrower.stripeAccountId = account.id;
+      await this.borrowerRepository.save(borrower);
 
-    // Create account link for onboarding
-    const accountLink = await this.stripe.accountLinks.create({
-      account: account.id,
-      refresh_url: `${this.configService.get('FRONTEND_URL')}/borrower/onboarding/retry`,
-      return_url: `${this.configService.get('FRONTEND_URL')}/borrower/onboarding/success`,
-      type: 'account_onboarding',
-    });
+      // Create onboarding link
+      const accountLink = await this.stripe.accountLinks.create({
+        account: account.id,
+        refresh_url: `${this.configService.get('FRONTEND_URL')}/onboarding/retry`,
+        return_url: `${this.configService.get('FRONTEND_URL')}/onboarding/success`,
+        type: 'account_onboarding',
+        collect: 'eventually_due', // Collect all required fields upfront
+      });
 
-    return accountLink.url;
+      return accountLink.url;
+    } catch (error) {
+      console.error('Stripe Connect Error:', error);
+      throw new HttpException(
+        `Failed to create Stripe account: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   async sendPaymentToBorrower(
@@ -62,9 +85,11 @@ export class PaymentsService {
       where: { id: borrowerId },
       relations: ['payments'],
     });
+    
     if (!borrower) {
       throw new HttpException('Borrower not found', HttpStatus.NOT_FOUND);
     }
+    
     if (!borrower.stripeAccountId) {
       throw new HttpException(
         'Borrower not onboarded to Stripe',
@@ -72,37 +97,60 @@ export class PaymentsService {
       );
     }
 
-    // Create transfer to borrower's Stripe account
-    const transfer = await this.stripe.transfers.create({
-      amount: Math.round(amount * 100), // in cents
-      currency,
-      destination: borrower.stripeAccountId,
-    });
+    try {
+      // Verify the account is ready for transfers
+      const account = await this.stripe.accounts.retrieve(borrower.stripeAccountId);
+      if (!account.capabilities?.transfers || account.capabilities.transfers !== 'active') {
+        throw new HttpException(
+          'Borrower account not ready for transfers',
+          HttpStatus.BAD_REQUEST
+        );
+      }
 
-    // Record the disbursement in your database
-    const payment = this.paymentRepository.create({
-      borrower,
-      amount,
-      currency,
-      status: 'disbursed',
-      stripePaymentId: transfer.id,
-      isDisbursement: true, 
-    });
-    await this.paymentRepository.save(payment);
+      // Create transfer to borrower's Stripe account
+      const transfer = await this.stripe.transfers.create({
+        amount: Math.round(amount * 100), // in cents
+        currency,
+        destination: borrower.stripeAccountId,
+        metadata: {
+          borrowerId,
+          purpose: 'loan_disbursement',
+        },
+      });
 
-    return transfer;
+      // Record the disbursement in your database
+      const payment = this.paymentRepository.create({
+        borrower,
+        amount,
+        currency,
+        status: 'disbursed',
+        stripePaymentId: transfer.id,
+        isDisbursement: true,
+      });
+      
+      await this.paymentRepository.save(payment);
+
+      return transfer;
+    } catch (error) {
+      console.error('Transfer Error:', error);
+      throw new HttpException(
+        `Failed to transfer funds: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
+
   /** Create a Payment Intent for a Borrower */
   async createPaymentIntent(
-    borrowerId: string, // Change type from number to string
+    borrowerId: string,
     amount: number,
     currency: string,
   ) {
     try {
-      // Check if borrower exists
       const borrower = await this.borrowerRepository.findOne({
         where: { id: borrowerId },
       });
+      
       if (!borrower) {
         throw new HttpException('Borrower not found', HttpStatus.NOT_FOUND);
       }
@@ -110,10 +158,10 @@ export class PaymentsService {
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amount * 100, // Convert to cents
         currency,
-        metadata: { borrowerId }, // Pass borrowerId as string
+        metadata: { borrowerId },
+        payment_method_types: ['card'],
       });
 
-      // Save payment intent in DB (as "pending")
       const payment = this.paymentRepository.create({
         borrower,
         amount,
@@ -121,12 +169,21 @@ export class PaymentsService {
         status: 'pending',
         stripePaymentId: paymentIntent.id,
       });
+      
       await this.paymentRepository.save(payment);
 
-      return { clientSecret: paymentIntent.client_secret, amount, currency };
+      return { 
+        clientSecret: paymentIntent.client_secret, 
+        amount, 
+        currency,
+        paymentIntentId: paymentIntent.id,
+      };
     } catch (error) {
       console.error('Payment Intent Error:', error);
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        error.message, 
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
@@ -138,7 +195,7 @@ export class PaymentsService {
 
     try {
       event = this.stripe.webhooks.constructEvent(
-        Buffer.from(request.body), // Ensure proper buffer parsing
+        request.rawBody || request.body,
         signature,
         endpointSecret,
       );
@@ -150,17 +207,25 @@ export class PaymentsService {
       );
     }
 
-    if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      console.log(
-        `✅ Payment for borrower ${paymentIntent.metadata.borrowerId} succeeded!`,
-      );
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        await this.paymentRepository.update(
+          { stripePaymentId: paymentIntent.id },
+          { status: 'succeeded' },
+        );
+        break;
 
-      // Find and update the payment record
-      await this.paymentRepository.update(
-        { stripePaymentId: paymentIntent.id },
-        { status: 'succeeded' },
-      );
+      case 'account.updated':
+        const account = event.data.object as Stripe.Account;
+        // You might want to update borrower's Stripe account status here
+        break;
+
+      case 'transfer.created':
+      case 'transfer.updated':
+        const transfer = event.data.object as Stripe.Transfer;
+        // Update your payment records accordingly
+        break;
     }
 
     return { received: true };
@@ -170,18 +235,21 @@ export class PaymentsService {
   async getPaymentsForBorrower(borrowerId: string) {
     try {
       return await this.paymentRepository.find({
-        where: { borrower: { id: borrowerId } }, // Change type to string
+        where: { borrower: { id: borrowerId } },
         order: { createdAt: 'DESC' },
       });
     } catch (error) {
       console.error('Get Payments Error:', error);
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        error.message, 
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
   /** Create a Payment Plan */
   async createPaymentPlan(
-    borrowerId: string, // Change type from number to string
+    borrowerId: string,
     totalAmount: number,
     installments: number,
     dueDates: string[],
@@ -206,14 +274,22 @@ export class PaymentsService {
 
   /** Pay an Installment */
   async payInstallment(
-    borrowerId: string, // Change type from number to string
+    borrowerId: string,
     installmentId: number,
     amount: number,
   ) {
-    return {
-      message: 'Installment payment successful',
-      installmentId,
-      amountPaid: amount,
-    };
+    try {
+      // In a real implementation, you would create a payment intent here
+      return {
+        message: 'Installment payment successful',
+        installmentId,
+        amountPaid: amount,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 }

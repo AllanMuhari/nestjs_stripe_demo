@@ -8,7 +8,7 @@ import {
   Param,
 } from '@nestjs/common';
 import { BorrowersService } from './borrowers.service';
-import { Borrower } from './borrowers.entity';
+import { Borrower } from './entities/borrower.entity';
 
 @Controller('borrowers')
 export class BorrowersController {

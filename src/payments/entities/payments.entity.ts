@@ -1,3 +1,4 @@
+// src/payments/entities/payments.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -24,7 +25,7 @@ export class Payment {
   currency: string;
 
   @Column({ nullable: true })
-  stripePaymentId: string; // Store Stripe payment ID for reference
+  stripePaymentId: string;
 
   @Column({
     type: 'enum',
@@ -32,6 +33,7 @@ export class Payment {
     default: 'pending',
   })
   status: 'pending' | 'succeeded' | 'failed' | 'disbursed';
+
   @Column({ default: false })
   isDisbursement: boolean;
 

@@ -1,10 +1,26 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Payment } from '../../payments/entities/payments.entity';
 
 @Entity()
 export class Borrower {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ nullable: false, default: 'Unknown' })
+  name: string;
+
+  @Column({ nullable: false, unique: true })
+  email: string;
+
+  @Column({ nullable: false })
+  phone: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   loanAmount: number;
@@ -15,11 +31,18 @@ export class Borrower {
   @Column({ type: 'boolean', default: false })
   isRepaid: boolean;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, unique: true })
   stripeCustomerId: string;
-  
-  @Column({ nullable: true })
+
+  @Column({ nullable: true, unique: true })
   stripeAccountId: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
   @OneToMany(() => Payment, (payment) => payment.borrower)
-  payments: Payment[]; // Establishes a one-to-many relationship with payments
+  payments: Payment[];
 }

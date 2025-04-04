@@ -4,9 +4,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BorrowersModule } from './borrowers/borrowers.module';
-import {Borrower } from './borrowers/borrowers.entity';
-import {PaymentsModule} from './payments/payments.module'
-import {Payment} from './payments/entities/payments.entity'
+import { Borrower } from './borrowers/entities/borrower.entity';
+import { PaymentsModule } from './payments/payments.module';
+import { Payment } from './payments/entities/payments.entity';
 
 @Module({
   imports: [
@@ -24,7 +24,7 @@ import {Payment} from './payments/entities/payments.entity'
       }),
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([Borrower , Payment]), 
+    TypeOrmModule.forFeature([Borrower, Payment]),
     BorrowersModule,
     PaymentsModule,
   ],
