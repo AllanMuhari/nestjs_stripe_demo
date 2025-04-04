@@ -1,15 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
-import * as cors from 'cors'
+import * as cors from 'cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-   origin: 'http://localhost:3001', //fronted url
-   methods: 'GET , HEAD , PUT , PATCH, POST, DELETE',
-   credentials:true,
+    origin: ['http://localhost:3001', 'other-allowed-origins'],
+    methods: 'GET , HEAD , PUT , PATCH, POST, DELETE',
+    credentials: true,
   });
   const port = process.env.PORT || 3000;
   await app.listen(port);
